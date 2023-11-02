@@ -1,7 +1,11 @@
 let express = require("express");
 let router = express.Router();
 let jwt = require("jsonwebtoken");
-let { checkJWTToken, changePasswordVerification } = require("./middleware");
+let {
+  checkJWTToken,
+  changePasswordVerification,
+  checkContentType,
+} = require("./middleware");
 const uuidv4 = require("react-uuid");
 
 //The below middleware has been taken from the HyperionDev exercise/manual. The first section of the middleware us for users and the second part is for the todo's
@@ -14,7 +18,7 @@ let userInformation = [
 ];
 
 //See if user is in db/userlist. If user exists token is generated.
-router.post("/login", function (req, res) {
+router.post("/login", checkContentType, function (req, res) {
   const userLogin = req.body.username;
   const pwd = req.body.password;
 
@@ -42,7 +46,7 @@ router.post("/login", function (req, res) {
 });
 
 //adds user to db. If user does not end with @gmail.com 403 is send to user.
-router.post("/register", (req, res) => {
+router.post("/register", checkContentType, (req, res) => {
   const userLogin = req.body.username;
   const pwd = req.body.password;
   let gmailCheck = userLogin.endsWith("@gmail.com");
@@ -56,7 +60,7 @@ router.post("/register", (req, res) => {
     res.status(201).send("User added");
   } else {
   }
-  res.status(403).send({ error: "Please use email that ends with @gmail.com" });
+  res.status(403).send({ error: "Please enter a valid email." });
 });
 
 //The below is only used to test if a user is being added.
@@ -124,46 +128,57 @@ router.get("/:id", checkJWTToken, function (req, res) {
 });
 
 //Add todo
-router.post("/add", checkJWTToken, (req, res) => {
+//Added a if statement to check the length of the title added.
+router.post("/add", checkJWTToken, checkContentType, (req, res) => {
   const username = req.body.username;
   const title = req.body.title;
   const completed = req.body.completed;
   try {
-    console.log(req.body);
-
+    if (title.length >= 140) {
+      res
+        .status(400)
+        .send(
+          "Your title is too long, please keep the length less than 140 characters."
+        );
+    }
     let newItem = { username: username, title: title, completed: completed };
-    console.log(newItem);
-
     todos.push({ ...newItem, id: uuidv4() });
-
-    res.status(201).send("Item added");
+    res.status(201).send({ message: "Item added" });
   } catch (err) {
     console.log(err);
   }
 });
 
 //Edit todo
-router.put("/update/:id", checkJWTToken, (req, res) => {
+//Added a if statement to check the length of the title added.
+router.put("/update/:id", checkContentType, checkJWTToken, (req, res) => {
   try {
     const username = req.body.username;
     const title = req.body.title;
     const completed = req.body.completed;
     const id = req.params.id;
+    if (title.length >= 140) {
+      res
+        .status(400)
+        .send(
+          "Your title is too long, please keep the length less than 140 characters."
+        );
+    } else {
+      const todoIndex = todos.findIndex((index) => index.id == id);
+      //Identify where in the array the object exists
+      //number
+      console.log(todoIndex);
 
-    const todoIndex = todos.findIndex((index) => index.id == id);
-    //Identify where in the array the object exists
-    //number
-    console.log(todoIndex);
-
-    //create newItem
-    let newItem = {
-      username: username,
-      title: title,
-      completed: completed,
-      id: id,
-    };
-    todos[todoIndex] = newItem;
-    res.send(todos);
+      //create newItem
+      let newItem = {
+        username: username,
+        title: title,
+        completed: completed,
+        id: id,
+      };
+      todos[todoIndex] = newItem;
+      res.send(todos);
+    }
   } catch (err) {
     res.status(403).send({
       err: "not found",
